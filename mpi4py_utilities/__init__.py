@@ -23,17 +23,17 @@ def print_msg_mpi(aStr='', end='\n'):
     sys.stdout.flush()
 
 
-def print_mpi(world, aStr="", end='\n', rank=None):
+def print_mpi(aStr, world, end='\n', rank=None):
     """Print to the screen with a flush.
 
     Parameters
     ----------
-    world : mpi4py.MPI.Comm
-        MPI parallel communicator.
     aStr : str
         A string to print.
     end : str
         string appended after the last value, default is a newline.
+    world : mpi4py.MPI.Comm
+        MPI parallel communicator.
     rank : int
         The rank to print from, default is the master rank, 0.
 
@@ -62,8 +62,10 @@ def banner(world, aStr=None, end='\n', rank=0):
     """
     if (aStr is None):
         return
-    msg = "="*78 + end + aStr + end + aStr="="*78
-    rankPrint(world, msg, end=end, rank=rank)
+    msg = "="*78
+    msg += end + aStr + end + aStr
+    msg += "="*78
+    print_mpi(world, msg, end=end, rank=rank)
 
 def ordered_print(world, values, title=None):
     """Prints numbers from each rank in order of rank
@@ -132,7 +134,7 @@ def parallel_prng(world, time_function):
         Function to obtain time, usually MPI.Wtime
 
     """
-    return np.random.RandomState(parallel_seed(worldm time_functions))
+    return np.random.RandomState(parallel_seed(world, time_functions))
 
 def loadBalance1D_shrinkingArrays(N, n_chunks):
     """Splits the length of an array into a number of chunks. Load balances the chunks in a shrinking arrays fashion.
