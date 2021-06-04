@@ -16,10 +16,10 @@ def readme():
 setup(name='mpi4py_utilities',
     packages=find_packages(),
     scripts=[],
-    version="1.0.0",
+    version="1.0.1",
     description='Utility functions for mpi4py',
     long_description=readme(),
-    url='https://github.com/leonfoks/mpi4py_utilities/archive/refs/tags/1.0.0.tar.gz',
+    url='https://github.com/leonfoks/mpi4py_utilities/archive/refs/tags/1.0.1.tar.gz',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved',
