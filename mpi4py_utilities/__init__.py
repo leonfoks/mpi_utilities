@@ -603,7 +603,7 @@ def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
 
     # Broadcast the data type
     if dtype is None:
-        dtype = bcastType(self, world, root=root)
+        dtype = bcast_type(self, world, root=root)
 
     assert dtype != 'list', TypeError("Use MPI.Bcast_list for lists")
 
@@ -629,7 +629,7 @@ def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
 
     if (ndim > 1):  # nD Array
         if shape is None:
-            shape = Bcast(np.asarray(self.shape), world, root=root, ndim=1)  # Broadcast the shape
+            shape = Bcast(np.asarray(self.shape), world, root=root)  # Broadcast the shape
         this = np.empty(shape, dtype=dtype)
         if (world.rank == root):  # Assign on the root
             this[:] = self
@@ -788,7 +788,7 @@ def Scatterv(self, starts, chunks, world, axis=0, root=0):
 
     """
     # Brodacast the type
-    dtype = bcastType(self, world, root=root)
+    dtype = bcast_type(self, world, root=root)
 
     assert dtype != 'list', TypeError("Use Scatterv_list for lists!")
 
