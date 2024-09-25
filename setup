@@ -31,7 +31,6 @@ setup(name='mpi4py_utilities',
     author_email='leonfoks@gmail.com',
     install_requires=[
         'numpy',
-        'sphinx',
     ],
 )
 
