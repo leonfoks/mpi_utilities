@@ -4,7 +4,7 @@ from os import getpid
 import pickle
 import numpy as np
 from numpy.random import Generator, PCG64DXSM
-from .src.common import print, load_balance
+from .src.common import print, load_balance, mpiu_time
 from .src.Bcast import Bcast
 from .src.Send import Send
 from .src.Recv import Recv
@@ -20,7 +20,7 @@ from .src.Allgatherv import Allgatherv
 
 #from ...base.Error import Error as Err
 
-def banner(world, aStr=None, end='\n', rank=0):
+def banner(world, *args, root=0, **kwargs):
     """Prints a String with Separators above and below
 
     Parameters
@@ -35,12 +35,15 @@ def banner(world, aStr=None, end='\n', rank=0):
         The rank to print from, default is the head rank, 0.
 
     """
-    if (aStr is None):
-        return
-    msg = "="*78
-    msg += end + aStr + end + aStr
-    msg += "="*78
-    print_mpi(world, msg, end=end, rank=rank)
+    world.barrier()
+
+    if world.rank == root:
+        msg = "="*78
+        print(msg, flush=True)
+        print(*args, flush=True)
+        print(msg, flush=True)
+    world.barrier()
+
 
 def ordered_print(world, values, title=None):
     """Prints numbers from each rank in order of rank

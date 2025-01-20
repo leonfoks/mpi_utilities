@@ -40,6 +40,16 @@ def test_bcast(world):
     assert np.all(j == np.zeros((2, 2, 2), dtype=np.float64)) and np.all(np.asarray(np.shape(j)) == 2), ValueError("j")
     world.barrier()
 
+    i = [x for x in range(1000)] if world.rank == 0 else None
+    # Testing lists
+    j = mpiu.Bcast(i, world=world, root=0)
+    assert all(j == np.arange(1000)), ValueError("Bcast list")
+
+    
+    
+
+
+
 def test_send_recv(world):
     ###
     mpiu.print("Sending and receiving", world=world, rank=0)

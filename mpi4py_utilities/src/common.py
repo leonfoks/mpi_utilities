@@ -17,11 +17,11 @@ def mpiu_dtype(self):
         out = str(self.dtype)
     return out
 
-def time(world=None):
+def mpiu_time(world=None):
     from mpi4py.MPI import Wtime
-    from time import time
+    import time
     if world is None:
-        return time()
+        return time.time()
     else:
         return Wtime()
 
@@ -204,7 +204,7 @@ def load_balance_3d(shape, n_chunks):
 
     return starts, chunks
 
-def range(*args, world, root=0, **kwargs):
+def prange(*args, world, root=0, **kwargs):
         """Generate a loop range.
 
         Tracks progress on the master rank only if parallel.
