@@ -68,11 +68,11 @@ def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
     if dtype is None:
         dtype = world.bcast(get_dtype(self, world, rank=root), root=root)
 
-    assert dtype != 'list', TypeError("Use MPI.Bcast_list for lists.")
-
     if dtype == 'str':
         return world.bcast(self, root=root)
-    # assert dtype != 'str', TypeError("Use world.bcast(this) for str")
+    
+    if dtype == 'list':
+        return world.bcast(self, root=root)
 
     # Broadcast the number of dimensions
     if ndim is None:
