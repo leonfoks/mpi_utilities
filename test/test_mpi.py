@@ -29,7 +29,6 @@ def test_bcast(world):
         assert np.all(j == np.arange(10, dtype=t)) and j.size == 10, ValueError(f"Bcast 1d {t}")
         world.barrier()
 
-
     i = np.zeros((2, 2), dtype=np.float64) if world.rank == 0 else None
     j = mpiu.Bcast(i, world=world, root=0)
     assert np.all(j == np.zeros((2, 2), dtype=np.float64)) and np.all(np.asarray(np.shape(j)) == 2), ValueError("j")
@@ -301,6 +300,62 @@ def test_allgatherv(world):
         j = mpiu.Allgatherv(i, world)
         assert np.all(j == test) and isinstance(j[0], t) , ValueError(f"Gatherv 1d array {t}")
 
+def test_reduce(world):
+    ###
+    mpiu.print("Reducing", world=world, rank=0)
+    ###
+    head_rank = world.rank == 0
+
+    i = None; j = None
+    i = 4
+    j = mpiu.Reduce(i, 'sum', world)
+
+    if head_rank:
+        assert j == 4*world.size, TypeError("j must be np.int64")
+    world.barrier()
+
+    for t in [np.float32, np.float64, np.complex128]:
+        i = None; j = None
+        i = t(4)
+        j = mpiu.Reduce(i, 'sum', world)
+        print(j.dtype)
+        print(isinstance(j.dtype, t))
+        if head_rank:
+            assert isinstance(j, t) and j == 4*world.size, TypeError(f"isend/irecv scalar j must be {t}")
+        world.barrier()
+
+    # for t in [np.int32, np.int64, np.float32, np.float64, np.complex128]:
+    #     i = None; j = None
+    #     if head_rank:
+    #         i = np.arange(10, dtype=t)
+    #         for k in range(1, world.size):
+    #             mpiu.Isend(i, dest=k, world=world)
+    #     else:
+    #         j = mpiu.Irecv(source=0, world=world)
+    #         assert np.all(j == np.arange(10, dtype=t)) and j.size == 10, TypeError(f"isend/irecv 1d j must be {t}")
+    #     world.barrier()
+
+
+    # i = None; j = None
+    # if head_rank:
+    #     i = np.zeros((2, 2), dtype=np.float64)
+    #     for k in range(1, world.size):
+    #         mpiu.Isend(i, dest=k, world=world)
+    # else:
+    #     j = mpiu.Irecv(source=0, world=world)
+    #     assert np.all(j == np.zeros((2, 2), dtype=np.float64)) and np.all(np.asarray(np.shape(j)) == 2), TypeError(f"isend/irecv 2d j must be {t}")
+    # world.barrier()
+
+    # i = None; j = None
+    # if head_rank:
+    #     i = np.zeros((2, 2, 2), dtype=np.float64)
+    #     for k in range(1, world.size):
+    #         mpiu.Isend(i, dest=k, world=world)
+    # else:
+    #     j = mpiu.Irecv(source=0, world=world)
+    #     assert np.all(j == np.zeros((2, 2, 2), dtype=np.float64)) and np.all(np.asarray(np.shape(j)) == 2), TypeError(f"isend/irecv 3d j must be {t}")
+    # world.barrier()
+
 def test_load_balancing(world):
     ###
     mpiu.print("Load Balancing", world=world, rank=0)
@@ -337,4 +392,5 @@ if __name__ == "__main__":
     test_scatterv(world)
     test_gatherv(world)
     test_allgatherv(world)
+    test_reduce(world)
     # test_load_balancing(world)
