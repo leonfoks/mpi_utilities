@@ -84,29 +84,6 @@ def hello_world(world):
     from mpi4py import MPI
     print(f'Hello from {world.rank}/{world.size} on {MPI.Get_processor_name()}', flush=True)
 
-# def Bcast_list(self, world, root=0):
-#     """Broadcast a list by pickling, sending, and unpickling.
-#     This is slower than using numpy arrays and uppercase (Bcast) mpi4py routines.
-#     Must be called collectively.
-
-#     Parameters
-#     ----------
-#     self : list
-#         A list to broadcast.
-#     world : mpi4py.MPI.Comm
-#         MPI parallel communicator.
-#     root : int, optional
-#         The MPI rank to broadcast from. Default is 0.
-
-#     Returns
-#     -------
-#     out : list
-#         The broadcast list on every MPI rank.
-
-#     """
-#     this = world.bcast(self, root=root)
-#     return this
-
 
 # def Scatterv_list(self, starts, chunks, world, root=0):
 #     """Scatterv a list by pickling, sending, receiving, and unpickling.  This is slower than using numpy arrays and uppercase (Scatterv) mpi4py routines. Must be called collectively.
