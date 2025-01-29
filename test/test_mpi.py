@@ -45,11 +45,6 @@ def test_bcast(world):
     j = mpiu.Bcast(i, world=world, root=0)
     assert all(j == np.arange(1000)), ValueError("Bcast list")
 
-    
-    
-
-
-
 def test_send_recv(world):
     ###
     mpiu.print("Sending and receiving", world=world, rank=0)
@@ -306,6 +301,18 @@ def test_allgatherv(world):
         j = mpiu.Allgatherv(i, world)
         assert np.all(j == test) and isinstance(j[0], t) , ValueError(f"Gatherv 1d array {t}")
 
+def test_load_balancing(world):
+    ###
+    mpiu.print("Load Balancing", world=world, rank=0)
+    ###
+
+    s, c = mpiu.load_balance(100, world.size)
+
+    t = np.int32(100/world.size)
+    assert np.all(s == np.arange(0, 100, t)) & np.all(c == np.full(world.size, fill_value=t)), ValueError("load balance 1d")
+
+    s, c = mpiu.load_balance([10, 10], world.size)
+    print(s, c)
 
 if __name__ == "__main__":
 
@@ -330,3 +337,4 @@ if __name__ == "__main__":
     test_scatterv(world)
     test_gatherv(world)
     test_allgatherv(world)
+    # test_load_balancing(world)
