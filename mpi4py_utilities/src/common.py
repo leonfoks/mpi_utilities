@@ -101,12 +101,12 @@ def print(*args, world=None, rank=None, **kwargs):
 
 def load_balance(shape, n_chunks):
 
-    if np.ndim(shape) <= 1:
+    if np.size(shape) <= 1:
         return load_balance_1d(shape, n_chunks)
-    elif np.ndim(shape) == 2:
-        return load_balance_1d(shape, n_chunks)
-    elif np.ndim(shape) == 3:
-        return load_balance_1d(shape, n_chunks)
+    elif np.size(shape) == 2:
+        return load_balance_2d(shape, n_chunks)
+    elif np.size(shape) == 3:
+        return load_balance_3d(shape, n_chunks)
     assert False, ValueError("Can only go up to 3d.")
 
 def load_balance_1d(N, n_chunks):
