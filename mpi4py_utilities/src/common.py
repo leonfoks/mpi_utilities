@@ -99,15 +99,21 @@ def print(*args, world=None, rank=None, **kwargs):
                 sys.stdout.write(msg)
     sys.stdout.flush()
 
-def load_balance(shape, n_chunks):
+def load_balance(shape, n_chunks, flatten=True):
 
-    if np.size(shape) <= 1:
-        return load_balance_1d(shape, n_chunks)
-    elif np.size(shape) == 2:
-        return load_balance_2d(shape, n_chunks)
-    elif np.size(shape) == 3:
-        return load_balance_3d(shape, n_chunks)
-    assert False, ValueError("Can only go up to 3d.")
+    match np.ndim(shape):
+        case 0:
+            return load_balance_1d(shape, n_chunks)
+        case 1:
+            match np.size(shape):
+                case 1:
+                    return load_balance_1d(shape, n_chunks)
+                case 2:
+                    return load_balance_2d(shape, n_chunks, flatten=flatten)
+                case 3:
+                    return load_balance_3d(shape, n_chunks, flatten=flatten)
+                case _:
+                    assert False, ValueError("Can only go up to 3d.")
 
 def load_balance_1d(N, n_chunks):
     """Splits the length of an array into a number of chunks. Load balances the chunks in a shrinking arrays fashion.
@@ -140,7 +146,7 @@ def load_balance_1d(N, n_chunks):
     return starts, chunks
 
 
-def load_balance_2d(shape, n_chunks):
+def load_balance_2d(shape, n_chunks, flatten=True):
     """Splits the shape of a 2D array into n_chunks.
 
     The chunks are as close in size as possible.
@@ -190,9 +196,14 @@ def load_balance_2d(shape, n_chunks):
     b = np.tile(np.repeat(c1, int(n_chunks/(c0.size*c1.size))), c0.size)
     chunks = np.vstack([a, b]).T
 
+    if not flatten:
+        n0 = s0.size; n1 = s1.size
+        starts = starts.reshape(n0, n1, starts.shape[-1])
+        chunks = chunks.reshape(n0, n1, starts.shape[-1])
+
     return starts, chunks
 
-def load_balance_3d(shape, n_chunks):
+def load_balance_3d(shape, n_chunks, flatten=True):
     """Splits the shape of a 3D array into n_chunks.
 
     The chunks are as close in size as possible.
@@ -250,6 +261,22 @@ def load_balance_3d(shape, n_chunks):
     chunks = np.vstack([a, b, c]).T
 
     return starts, chunks
+
+def channels(shape):
+
+    match np.ndim(shape):
+        case 0:
+            channels = np.tile(np.asarray([0, 1]), reps=np.int32(0.5 * shape))
+        case 1:
+            match np.size(shape):
+                case 1:
+                    channels = np.tile(np.asarray([0, 1]), reps=np.int32(0.5 * shape))
+                case 2:
+                    print('stuff')
+                case 3:
+                    print('stuff')
+
+
 
 def prange(*args, world, root=0, **kwargs):
         """Generate a loop range.
