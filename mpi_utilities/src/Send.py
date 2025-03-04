@@ -1,7 +1,7 @@
 import numpy as np
-from .common import get_dtype, print
+from .common import get_dtype, print, listen
 
-def Isend(self, dest, world, dtype=None, ndim=None, shape=None):
+def Send(self, dest, world, dtype=None, ndim=None, shape=None, listen_request=False, verbose=False):
     """Isend wrapper.
 
     Automatically determines data type and shape. Must be accompanied by Irecv on the dest rank.
@@ -22,32 +22,37 @@ def Isend(self, dest, world, dtype=None, ndim=None, shape=None):
         values shape if known. Faster
         Defaults to None.
     """
+
+    if listen_request:
+        dest = listen(world=world)
+
     # Send the data type
     if dtype is None:
         dtype = get_dtype(self, world, world.rank)
-        world.isend(dtype, dest=dest)
+        world.send(dtype, dest=dest)
 
-    assert (not dtype == 'list'), TypeError("Cannot Isend/Irecv a list")
+    assert (not dtype == 'list'), TypeError("Cannot Send/Recv a list")
 
     if dtype == 'str':
-        world.isend(self, dest=dest)
-        return
+        return world.send(self, dest=dest)
 
     # Broadcast the number of dimensions
     if ndim is None:
         ndim = np.ndim(self)
-        Isend(ndim, dest=dest, world=world, ndim=0, dtype=np.int64)
+        Send(ndim, dest=dest, world=world, ndim=0, dtype=np.int64)
 
     if (ndim == 0):  # For a single number
         this = np.full(1, self, dtype=dtype)  # Initialize on each worker
-        world.Isend(this, dest=dest)
+        world.Send(this, dest=dest)
 
     elif (ndim == 1):  # For a 1D array
         if shape is None:
-            Isend(np.size(self), dest=dest, world=world, ndim=0, dtype=np.int64)
-        world.Isend(self, dest=dest)
+            Send(np.size(self), dest=dest, world=world, ndim=0, dtype=np.int64)
+        world.Send(self, dest=dest)
 
     elif (ndim > 1):  # nD Array
         if shape is None:
-            Isend(np.asarray(self.shape, dtype=np.int64), dest=dest, world=world, shape=ndim, dtype=np.int64)
-        world.Isend(self, dest=dest)
+            Send(np.asarray(self.shape, dtype=np.int64), dest=dest, world=world, shape=ndim, dtype=np.int64)
+        world.Send(self, dest=dest)
+
+    return dest

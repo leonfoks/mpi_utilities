@@ -1,8 +1,8 @@
 import numpy as np
-from .common import get_dtype, print
+from .common import get_dtype, print, request
 
 
-def Irecv(source, world, dtype=None, ndim=None, shape=None):
+def Recv(source, world, dtype=None, ndim=None, shape=None, listen_request=False, verbose=False):
     """Irecv wrapper.
 
     Automatically determines data type and shape. Must be accompanied by Isend on the source rank.
@@ -28,32 +28,36 @@ def Irecv(source, world, dtype=None, ndim=None, shape=None):
     out : scalar or array_like
         returned type depends on what was sent.
     """
-    if dtype is None:
-        dtype = world.irecv(source=source).wait()
 
-    assert not dtype == 'list', TypeError("Cannot Isend/Irecv a list")
+    if listen_request:
+        request(world=world, rank=source)
+
+    if dtype is None:
+        dtype = world.recv(source=source)
+
+    assert not dtype == 'list', TypeError("Cannot Send/Recv a list")
 
     if dtype == 'str':
-        return world.irecv(source=source).wait()
+        return world.recv(source=source)
 
     if ndim is None:
-        ndim = Irecv(source, world, ndim=0, dtype=np.int64)
+        ndim = Recv(source, world, ndim=0, dtype=np.int64)
 
     if (ndim == 0):  # For a single number
         this = np.empty(1, dtype=dtype)  # Initialize on each worker
-        world.Irecv(this, source=source).Wait()
-        this = this[0]
+        world.Recv(this, source=source)  # Broadcast
+        return this[0]
 
     elif (ndim == 1): # For a 1D array
         if shape is None:
-            shape = Irecv(source=source, world=world, ndim=0, dtype=np.int64)
+            shape = Recv(source=source, world=world, ndim=0, dtype=np.int64)
         this = np.empty(shape, dtype=dtype)
-        world.Irecv(this, source=source).Wait()
+        world.Recv(this, source=source)
+        return this
 
     elif (ndim > 1): # Nd Array
         if shape is None:
-            shape = Irecv(source=source, world=world, shape=ndim, dtype=np.int64)
+            shape = Recv(source=source, world=world, shape=ndim, dtype=np.int64)
         this = np.empty(shape, dtype=dtype)
-        world.Irecv(this, source=source).Wait()
-
-    return this
+        world.Recv(this, source=source)
+        return this

@@ -1,8 +1,8 @@
 import numpy as np
-from .common import get_dtype, print
+from .common import get_dtype, print, request
 
 
-def Recv(source, world, dtype=None, ndim=None, shape=None):
+def Irecv(source, world, dtype=None, ndim=None, shape=None, listen_request=False, verbose=False, **kwargs):
     """Irecv wrapper.
 
     Automatically determines data type and shape. Must be accompanied by Isend on the source rank.
@@ -28,32 +28,44 @@ def Recv(source, world, dtype=None, ndim=None, shape=None):
     out : scalar or array_like
         returned type depends on what was sent.
     """
-    if dtype is None:
-        dtype = world.recv(source=source)
+    if listen_request:
+        request(world=world, rank=source)
 
-    assert not dtype == 'list', TypeError("Cannot Send/Recv a list")
+    if dtype is None:
+        dtype = world.irecv(source=source).wait()
+    if verbose:
+        print(f"{dtype=}")
+
+    assert not dtype == 'list', TypeError("Cannot Isend/Irecv a list")
 
     if dtype == 'str':
-        return world.recv(source=source)
+        this = world.irecv(source=source).wait()
+        return this
 
     if ndim is None:
-        ndim = Recv(source, world, ndim=0, dtype=np.int64)
+        ndim = Irecv(source, world, ndim=0, dtype=np.int64)
+    if verbose:
+        print(f"{ndim=}")
 
     if (ndim == 0):  # For a single number
         this = np.empty(1, dtype=dtype)  # Initialize on each worker
-        world.Recv(this, source=source)  # Broadcast
-        return this[0]
+        world.Irecv(this, source=source).Wait()
+        this = this[0]
 
     elif (ndim == 1): # For a 1D array
         if shape is None:
-            shape = Recv(source=source, world=world, ndim=0, dtype=np.int64)
+            shape = Irecv(source=source, world=world, ndim=0, dtype=np.int64)
+        if verbose:
+            print(f"{shape=}")
         this = np.empty(shape, dtype=dtype)
-        world.Recv(this, source=source)
-        return this
+        world.Irecv(this, source=source).Wait()
 
     elif (ndim > 1): # Nd Array
         if shape is None:
-            shape = Recv(source=source, world=world, shape=ndim, dtype=np.int64)
+            shape = Irecv(source=source, world=world, shape=ndim, dtype=np.int64)
+        if verbose:
+            print(f"{shape=}")
         this = np.empty(shape, dtype=dtype)
-        world.Recv(this, source=source)
-        return this
+        world.Irecv(this, source=source).Wait()
+
+    return this

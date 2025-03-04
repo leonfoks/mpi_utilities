@@ -52,24 +52,23 @@ def prng(generator=PCG64DXSM, seed=None, jump=None, world=None):
 
 def get_dtype(self, world=None, rank=0):
     out = None
-
     if world is not None:
         if world.rank == rank:
             out = mpiu_dtype(self)
     return out
 
 def mpiu_dtype(self):
-    out = str(self.__class__.__name__)  # Otherwise use the type finder
+    out = str(self.__class__.__name__)
     if 'ndarray' in out:
         out = str(self.dtype)
     return out
 
 def mpiu_time(world=None):
-    from mpi4py.MPI import Wtime
     import time
     if world is None:
         return time.time()
     else:
+        from mpi4py.MPI import Wtime
         return Wtime()
 
 def print(*args, world=None, rank=None, **kwargs):
@@ -91,8 +90,8 @@ def print(*args, world=None, rank=None, **kwargs):
     if world is None:
         sys.stdout.write(msg)
     else:
+        msg = f"{world.rank=}:" + msg
         if rank is None:
-            msg = f"rank {world.rank}:" + msg
             sys.stdout.write(msg)
         else:
             if (world.rank == rank):
@@ -276,8 +275,6 @@ def channels(shape):
                 case 3:
                     print('stuff')
 
-
-
 def prange(*args, world, root=0, **kwargs):
         """Generate a loop range.
 
@@ -294,3 +291,24 @@ def prange(*args, world, root=0, **kwargs):
             Bar = progressbar.ProgressBar()
             bar = Bar(bar)
         return bar
+
+
+def listen(world, rank=0):
+    """Listen for requests from arbitrary ranks
+    """
+    from mpi4py import MPI
+
+    assert world.rank == rank, ValueError(f"Do not call listen on ranks != {rank}")
+
+    status = MPI.Status()
+    dummy = world.recv(source = MPI.ANY_SOURCE, tag = 11, status = status)
+    requesting_rank = status.Get_source()
+    return requesting_rank
+
+def request(world, rank=0):
+    """Send a request for new work.
+    """
+    assert not world.rank == rank, ValueError(f"Do not call request on world.rank == {rank}")
+    world.send(1, dest=rank, tag=11)
+
+
