@@ -3,6 +3,7 @@ import numpy as np
 import progressbar
 import pickle
 from numpy.random import Generator, PCG64DXSM
+from .numba_methods import best_fit_chunks
 
 def prng(generator=PCG64DXSM, seed=None, jump=None, world=None):
     """Generate an independent prng.
@@ -100,19 +101,27 @@ def print(*args, world=None, rank=None, **kwargs):
 
 def load_balance(shape, n_chunks, flatten=True):
 
-    match np.ndim(shape):
-        case 0:
-            return load_balance_1d(shape, n_chunks)
-        case 1:
-            match np.size(shape):
-                case 1:
-                    return load_balance_1d(shape, n_chunks)
-                case 2:
-                    return load_balance_2d(shape, n_chunks, flatten=flatten)
-                case 3:
-                    return load_balance_3d(shape, n_chunks, flatten=flatten)
-                case _:
-                    assert False, ValueError("Can only go up to 3d.")
+    if (np.ndim(shape) == 0) or ((np.ndim(shape) == 1) and (np.size(shape) == 1)):
+        s, c = load_balance_1d(shape, n_chunks)
+        return s, c, s+c
+
+    bf = best_fit_chunks(shape, n_chunks)
+
+    s1d = []; c1d = []
+    for i in range(np.size(shape)):
+        s, c = load_balance_1d(shape[i], bf[i])
+        s1d.append(s); c1d.append(c)
+
+    # Use itertools.product to get all combinations
+    # The '*' unpacks the list of arrays as separate arguments to product
+    starts = np.stack(np.meshgrid(*s1d, indexing='ij'), axis=-1).reshape(-1, len(s1d))
+    chunks = np.stack(np.meshgrid(*c1d, indexing='ij'), axis=-1).reshape(-1, len(c1d))
+
+    if  not flatten:
+        starts = starts.reshape(*bf, np.size(shape))
+        chunks = chunks.reshape(*bf, np.size(shape))
+
+    return starts, chunks, starts + chunks
 
 def load_balance_1d(N, n_chunks):
     """Splits the length of an array into a number of chunks. Load balances the chunks in a shrinking arrays fashion.
@@ -142,123 +151,6 @@ def load_balance_1d(N, n_chunks):
     starts = np.cumsum(chunks) - chunks[0]
     if (mod > 0):
         starts[mod:] += 1
-    return starts, chunks
-
-
-def load_balance_2d(shape, n_chunks, flatten=True):
-    """Splits the shape of a 2D array into n_chunks.
-
-    The chunks are as close in size as possible.
-    The larger axes have more chunks along that dimension.
-
-    Parameters
-    ----------
-    shape : ints
-        2D shape to split
-    n_chunks : int
-        Number of chunks
-
-    Returns
-    -------
-    starts : ints
-        Starting indices of each chunk.  Has shape (n_chunks, 2)
-    chunks : ints
-        Size of each chunk. Has shape (n_chunks, 2)
-
-    """
-
-    assert n_chunks % 2 == 0, ValueError("n_chunks must be even.")
-
-    target = shape / np.linalg.norm(shape)
-    best = None
-    bestFit = 1e20
-    for i in range(2, np.int64(n_chunks/2)+1):
-        j = int(n_chunks/(i))
-        nBlocks = np.asarray([i, j])
-        total = np.prod(nBlocks)
-
-        if total == n_chunks:
-            fraction = nBlocks / np.linalg.norm(nBlocks)
-            fit = np.linalg.norm(fraction - target)
-            if fit < bestFit:
-                best = nBlocks
-                bestFit = fit
-
-    s0, c0 = load_balance_1d(shape[0], best[0])
-    s1, c1 = load_balance_1d(shape[1], best[1])
-
-    a = np.repeat(s0, int(n_chunks/s0.size))
-    b = np.tile(np.repeat(s1, int(n_chunks/(s0.size*s1.size))), s0.size)
-    starts = np.vstack([a, b]).T
-
-    a = np.repeat(c0, int(n_chunks/c0.size))
-    b = np.tile(np.repeat(c1, int(n_chunks/(c0.size*c1.size))), c0.size)
-    chunks = np.vstack([a, b]).T
-
-    if not flatten:
-        n0 = s0.size; n1 = s1.size
-        starts = starts.reshape(n0, n1, starts.shape[-1])
-        chunks = chunks.reshape(n0, n1, starts.shape[-1])
-
-    return starts, chunks
-
-def load_balance_3d(shape, n_chunks, flatten=True):
-    """Splits the shape of a 3D array into n_chunks.
-
-    The chunks are as close in size as possible.
-    The larger axes have more chunks along that dimension.
-
-    Parameters
-    ----------
-    shape : ints
-        3D shape to split
-    n_chunks : int
-        Number of chunks
-
-    Returns
-    -------
-    starts : ints
-        Starting indices of each chunk.  Has shape (n_chunks, 3)
-    chunks : ints
-        Size of each chunk. Has shape (n_chunks, 3)
-
-    """
-
-    # Find the "optimal" three product whose prod equals n_chunks
-    # and whose relative amounts match as closely to shape as possible.
-
-    assert n_chunks % 2 == 0, ValueError("n_chunks must be even.")
-
-    target = shape / np.linalg.norm(shape)
-    best = None
-    bestFit = 1e20
-    for i in range(1, int(n_chunks/2)+1):
-        for j in range(1, int(n_chunks/i)):
-            k = int(n_chunks/(i*j))
-            nBlocks = np.asarray([i, j, k])
-            total = np.prod(nBlocks)
-
-            if total == n_chunks:
-                fraction = nBlocks / np.linalg.norm(nBlocks)
-                fit = np.linalg.norm(fraction - target)
-                if fit < bestFit:
-                    best = nBlocks
-                    bestFit = fit
-
-    s0, c0 = load_balance_1d(shape[0], best[0])
-    s1, c1 = load_balance_1d(shape[1], best[1])
-    s2, c2 = load_balance_1d(shape[2], best[2])
-
-    a = np.repeat(s0, int(n_chunks/s0.size))
-    b = np.tile(np.repeat(s1, int(n_chunks/(s0.size*s1.size))), s0.size)
-    c = np.tile(s2, int(n_chunks/s2.size))
-    starts = np.vstack([a, b, c]).T
-
-    a = np.repeat(c0, int(n_chunks/c0.size))
-    b = np.tile(np.repeat(c1, int(n_chunks/(c0.size*c1.size))), c0.size)
-    c = np.tile(c2, int(n_chunks/c2.size))
-    chunks = np.vstack([a, b, c]).T
-
     return starts, chunks
 
 def channels(shape):
