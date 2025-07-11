@@ -11,7 +11,8 @@ requires-python = ">=3.10"
 authors = [
     { name = "Leon Foks", email = "leonfoks@gmail.com" }
 ]
-dependencies = ["numpy"]
+dependencies = ["numpy",
+                "numba"]
 
 classifiers = [
     'License :: OSI Approved',

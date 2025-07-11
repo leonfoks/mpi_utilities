@@ -1,2 +1,2 @@
 numpy
-progressbar2
+numba
