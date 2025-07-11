@@ -145,6 +145,7 @@ def load_balance_1d(N, n_chunks):
         The size of each chunk.
 
     """
+    N = np.asarray(N).item()
     chunks = np.full(n_chunks, fill_value=N/n_chunks, dtype=np.int64)
     mod = np.int64(N % n_chunks)
     chunks[:mod] += 1
