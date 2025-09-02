@@ -13,7 +13,7 @@ authors = [
 ]
 dependencies = ["numpy",
                 "numba",
-                stopywatch@git+https://github.com/leonfoks/stopywatch.git#egg=stopywatch]
+                "stopywatch@git+https://github.com/leonfoks/stopywatch.git#egg=stopywatch"]
 
 classifiers = [
     'License :: OSI Approved',
