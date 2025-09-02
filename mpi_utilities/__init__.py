@@ -2,7 +2,6 @@
 import sys
 from os import getpid
 import pickle
-from stopywatch import Stopwatch as Stopywatch
 import numpy as np
 from numpy.random import Generator, PCG64DXSM
 from .src.common import prng, listen, request
@@ -21,8 +20,8 @@ from .src.Allgatherv import Allgatherv
 
 def Stopwatch(**kwargs):
     from mpi4py import MPI
+    from stopywatch import Stopwatch as Stopywatch
     return Stopywatch(timer=MPI.Wtime, **kwargs)
-
 
 #from ...base.Error import Error as Err
 
