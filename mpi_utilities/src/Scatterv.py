@@ -2,7 +2,7 @@ import numpy as np
 from .common import get_dtype, load_balance
 from .Bcast import Bcast
 
-def Scatterv(self, world, starts=None, chunks=None, dtype=None, ndim=None, root=0):
+def Scatterv(self, comm, starts=None, chunks=None, dtype=None, ndim=None, root=0):
     """ScatterV a numpy array to all ranks in an MPI communicator.
 
     Each rank gets a chunk defined by a starting index and chunk size. Must be called collectively. The 'starts' and 'chunks' must be available on every MPI rank. See the example for more details. Must be called collectively.
@@ -23,7 +23,7 @@ def Scatterv(self, world, starts=None, chunks=None, dtype=None, ndim=None, root=
         Must exist on all ranks
     dtype : type
         The type of the numpy array being scattered. Must exist on all ranks.
-    world : mpi4py.MPI.Comm
+    comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     axis : int, optional
         Axis along which to Scatterv to the ranks if self is a 2D numpy array. Default is 0
@@ -33,24 +33,24 @@ def Scatterv(self, world, starts=None, chunks=None, dtype=None, ndim=None, root=
     Returns
     -------
     out : numpy.ndarray
-        A chunk of self on each MPI rank with size chunk[world.rank].
+        A chunk of self on each MPI rank with size chunk[comm.rank].
 
     """
     if dtype is None:
-        dtype = world.bcast(get_dtype(self, world, rank=root), root=root)
+        dtype = comm.bcast(get_dtype(self, comm, rank=root), root=root)
 
     if ndim is None:
         # Broadcast the number of dimensions
-        ndim = Bcast(np.ndim(self), world, root=root, ndim=0, dtype='int64')
+        ndim = Bcast(np.ndim(self), comm, root=root, ndim=0, dtype='int64')
 
     if chunks is None:
         if ndim == 1:
-            shape = Bcast(np.size(self), world, root=root, ndim=0, dtype='int64')
-        starts, chunks = load_balance(shape, world.size)
+            shape = Bcast(np.size(self), comm, root=root, ndim=0, dtype='int64')
+        starts, chunks = load_balance(shape, comm.size)
     else:
         assert ((chunks is not None) + (starts is not None)) != 1, ValueError("Must specify both chunks and starts.")
 
     if (ndim == 1):  # For a 1D Array
-        this = np.empty(chunks[world.rank], dtype=dtype)
-        world.Scatterv([self, chunks, starts, None], this, root=root)
+        this = np.empty(chunks[comm.rank], dtype=dtype)
+        comm.Scatterv([self, chunks, starts, None], this, root=root)
         return this

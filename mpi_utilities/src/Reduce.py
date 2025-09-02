@@ -32,7 +32,7 @@ def _get_mpi_operator(this):
 
     assert False, ValueError(f"this {this} must be from (max, min, sum, prod, land, lor, band, bor, maxloc, minloc)")
 
-def Reduce(self, operator, world, root=0):
+def Reduce(self, operator, comm, root=0):
 
     operator = _get_mpi_operator(operator)
 
@@ -43,6 +43,6 @@ def Reduce(self, operator, world, root=0):
         self = np.atleast_1d(self)
 
     reduced = np.zeros_like(self)
-    world.Reduce(self, reduced, op=operator, root=root)
+    comm.Reduce(self, reduced, op=operator, root=root)
 
     return np.asarray(reduced, dtype=dtype)

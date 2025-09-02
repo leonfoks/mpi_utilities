@@ -1,7 +1,7 @@
 import numpy as np
 from .common import get_dtype
 
-def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
+def Bcast(self, comm, root=0, dtype=None, ndim=None, shape=None):
     """Broadcast a string or a numpy array
 
     Broadcast a string or a numpy array from a root rank to all ranks in an MPI communicator.
@@ -13,7 +13,7 @@ def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
     ----------
     self : str or numpy.ndarray
         A string or numpy array to broadcast from root.
-    world : mpi4py.MPI.Comm
+    comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     root : int, optional
         The MPI rank to broadcast from. Default is 0.
@@ -48,57 +48,57 @@ def Bcast(self, world, root=0, dtype=None, ndim=None, shape=None):
     >>> import numpy as np
     >>> from mpi4py import MPI
     >>> import mpi4py_utilities as mpiu
-    >>> world = MPI.COMM_WORLD
-    >>> if world.rank == 0:
+    >>> comm = MPI.COMM_WORLD
+    >>> if comm.rank == 0:
     >>>     x = np.arange(10)
     >>> # Instantiate on all other ranks before broadcasting
     >>> else:
     >>>     x=None
-    >>> y = mpiu.Bcast(x, world)
+    >>> y = mpiu.Bcast(x, comm)
     >>>
     >>> # A string example
-    >>> if (world.rank == 0):
+    >>> if (comm.rank == 0):
     >>>     s = 'some string'  # This may have been read in through an input file for production code
     >>> else:
     >>>     s = ''
-    >>> s = mpiu.Bcast(s,world)
+    >>> s = mpiu.Bcast(s,comm)
 
     """
     # Broadcast the data type
     if dtype is None:
-        dtype = world.bcast(get_dtype(self, world, rank=root), root=root)
+        dtype = comm.bcast(get_dtype(self, comm, rank=root), root=root)
 
     if dtype == 'str':
-        return world.bcast(self, root=root)
-    
+        return comm.bcast(self, root=root)
+
     if dtype == 'list':
-        return world.bcast(self, root=root)
+        return comm.bcast(self, root=root)
 
     # Broadcast the number of dimensions
     if ndim is None:
-        ndim = Bcast(np.ndim(self), world, root=root, ndim=0, dtype='int64')
+        ndim = Bcast(np.ndim(self), comm, root=root, ndim=0, dtype='int64')
 
     if (ndim == 0):  # For a single number
         this = np.empty(1, dtype=dtype)  # Initialize on each worker
-        if (world.rank == root):
+        if (comm.rank == root):
             this[0] = self  # Assign on the head
-        world.Bcast(this)  # Broadcast
+        comm.Bcast(this)  # Broadcast
         return this[0]
 
     if (ndim == 1):  # For a 1D array
         if shape is None:
-            shape = Bcast(np.size(self), world, root=root, ndim=0, dtype='int64')  # Broadcast the array size
+            shape = Bcast(np.size(self), comm, root=root, ndim=0, dtype='int64')  # Broadcast the array size
         this = np.empty(shape, dtype=dtype)
-        if (world.rank == root):  # Assign on the root
+        if (comm.rank == root):  # Assign on the root
             this[:] = self
-        world.Bcast(this, root=root)  # Broadcast
+        comm.Bcast(this, root=root)  # Broadcast
         return this
 
     if (ndim > 1):  # nD Array
         if shape is None:
-            shape = Bcast(np.asarray(np.shape(self)), world, root=root, shape=ndim, dtype='int64')  # Broadcast the shape
+            shape = Bcast(np.asarray(np.shape(self)), comm, root=root, shape=ndim, dtype='int64')  # Broadcast the shape
         this = np.empty(shape, dtype=dtype)
-        if (world.rank == root):  # Assign on the root
+        if (comm.rank == root):  # Assign on the root
             this[:] = self
-        world.Bcast(this, root=root)  # Broadcast
+        comm.Bcast(this, root=root)  # Broadcast
         return this

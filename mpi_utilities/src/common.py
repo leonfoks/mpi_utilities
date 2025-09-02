@@ -5,7 +5,7 @@ import pickle
 from numpy.random import Generator, PCG64DXSM
 from .numba_methods import best_fit_chunks
 
-def prng(generator=PCG64DXSM, seed=None, jump=None, world=None):
+def prng(generator=PCG64DXSM, seed=None, jump=None, comm=None):
     """Generate an independent prng.
 
     Returns
@@ -14,14 +14,14 @@ def prng(generator=PCG64DXSM, seed=None, jump=None, world=None):
         The seed of the bit generator.
     jump : int, optional
         Jump the bit generator by this amount
-    world : mpi4py.MPI.COMM_WORLD, optional
-        MPI communicator, will jump each bit generator by world.rank
+    comm : mpi4py.MPI.COMM_WORLD, optional
+        MPI communicator, will jump each bit generator by comm.rank
 
     """
     # Default to single core, else grab the mpi rank.
     rank = 0
-    if world is not None:
-        rank = world.rank
+    if comm is not None:
+        rank = comm.rank
 
     if rank == 0:
         if seed is not None: # Seed is a file.
@@ -37,24 +37,24 @@ def prng(generator=PCG64DXSM, seed=None, jump=None, world=None):
                 pickle.dump(seed, f)
             print('Seed: {}'.format(seed), flush=True)
 
-    if world is not None:
+    if comm is not None:
         # Broadcast the seed to all ranks.
-        seed = world.bcast(seed, root=0)
+        seed = comm.bcast(seed, root=0)
 
     bit_generator = generator(seed = seed)
 
-    if world is not None:
-        jump = world.rank
+    if comm is not None:
+        jump = comm.rank
 
     if jump is not None:
         bit_generator = bit_generator.jumped(jump)
 
     return Generator(bit_generator)
 
-def get_dtype(self, world=None, rank=0):
+def get_dtype(self, comm=None, rank=0):
     out = None
-    if world is not None:
-        if world.rank == rank:
+    if comm is not None:
+        if comm.rank == rank:
             out = mpiu_dtype(self)
     return out
 
@@ -64,15 +64,15 @@ def mpiu_dtype(self):
         out = str(self.dtype)
     return out
 
-def mpiu_time(world=None):
+def mpiu_time(comm=None):
     import time
-    if world is None:
+    if comm is None:
         return time.time()
     else:
         from mpi4py.MPI import Wtime
         return Wtime()
 
-def print(*args, world=None, rank=None, **kwargs):
+def print(*args, comm=None, rank=None, **kwargs):
     """Print to the screen with a flush.
 
     Parameters
@@ -81,21 +81,21 @@ def print(*args, world=None, rank=None, **kwargs):
         A string to print.
     end : str
         string appended after the last value, default is a newline.
-    world : mpi4py.MPI.Comm
+    comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     rank : int
         The rank to print from, default is the head rank, 0.
 
     """
     msg = ' '.join(str(x) for x in args) + "\n"
-    if world is None:
+    if comm is None:
         sys.stdout.write(msg)
     else:
-        msg = f"{world.rank=}:" + msg
+        msg = f"{comm.rank=}:" + msg
         if rank is None:
             sys.stdout.write(msg)
         else:
-            if (world.rank == rank):
+            if (comm.rank == rank):
                 sys.stdout.write(msg)
     sys.stdout.flush()
 
@@ -103,7 +103,7 @@ def load_balance(shape, n_chunks, flatten=True):
 
     if (np.ndim(shape) == 0) or ((np.ndim(shape) == 1) and (np.size(shape) == 1)):
         s, c = load_balance_1d(shape, n_chunks)
-        return s, c, s+c
+        return s, c
 
     bf = best_fit_chunks(shape, n_chunks)
 
@@ -121,7 +121,7 @@ def load_balance(shape, n_chunks, flatten=True):
         starts = starts.reshape(*bf, np.size(shape))
         chunks = chunks.reshape(*bf, np.size(shape))
 
-    return starts, chunks, starts + chunks
+    return starts, chunks
 
 def load_balance_1d(N, n_chunks):
     """Splits the length of an array into a number of chunks. Load balances the chunks in a shrinking arrays fashion.
@@ -135,7 +135,7 @@ def load_balance_1d(N, n_chunks):
     N : int
         A size to split into chunks.
     n_chunks : int
-        The number of chunks to split N into. Usually the number of ranks, world.size.
+        The number of chunks to split N into. Usually the number of ranks, comm.size.
 
     Returns
     -------
@@ -168,7 +168,7 @@ def channels(shape):
                 case 3:
                     print('stuff')
 
-def prange(*args, world, root=0, **kwargs):
+def prange(*args, comm, root=0, **kwargs):
         """Generate a loop range.
 
         Tracks progress on the master rank only if parallel.
@@ -180,28 +180,28 @@ def prange(*args, world, root=0, **kwargs):
         """
         bar = range(*args, **kwargs)
 
-        if world.rank == root:
+        if comm.rank == root:
             Bar = progressbar.ProgressBar()
             bar = Bar(bar)
         return bar
 
 
-def listen(world, rank=0):
+def listen(comm, rank=0):
     """Listen for requests from arbitrary ranks
     """
     from mpi4py import MPI
 
-    assert world.rank == rank, ValueError(f"Do not call listen on ranks != {rank}")
+    assert comm.rank == rank, ValueError(f"Do not call listen on ranks != {rank}")
 
     status = MPI.Status()
-    dummy = world.recv(source = MPI.ANY_SOURCE, tag = 11, status = status)
+    dummy = comm.recv(source = MPI.ANY_SOURCE, tag = 11, status = status)
     requesting_rank = status.Get_source()
     return requesting_rank
 
-def request(world, rank=0):
+def request(comm, rank=0):
     """Send a request for new work.
     """
-    assert not world.rank == rank, ValueError(f"Do not call request on world.rank == {rank}")
-    world.send(1, dest=rank, tag=11)
+    assert not comm.rank == rank, ValueError(f"Do not call request on comm.rank == {rank}")
+    comm.send(1, dest=rank, tag=11)
 
 

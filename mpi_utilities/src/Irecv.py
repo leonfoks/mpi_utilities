@@ -2,7 +2,7 @@ import numpy as np
 from .common import get_dtype, print, request
 
 
-def Irecv(source, world, dtype=None, ndim=None, shape=None, listen_request=False, verbose=False, **kwargs):
+def Irecv(source, comm, dtype=None, ndim=None, shape=None, listen_request=False, verbose=False, **kwargs):
     """Irecv wrapper.
 
     Automatically determines data type and shape. Must be accompanied by Isend on the source rank.
@@ -11,7 +11,7 @@ def Irecv(source, world, dtype=None, ndim=None, shape=None, listen_request=False
     ----------
     source : int
         Rank to receive to
-    world : mpi4py.MPI.COMM_WORLD
+    comm : mpi4py.MPI.COMM_WORLD
         MPI communicator
     dtype : dtype, optional
         Pre-determined data type if known.
@@ -29,43 +29,43 @@ def Irecv(source, world, dtype=None, ndim=None, shape=None, listen_request=False
         returned type depends on what was sent.
     """
     if listen_request:
-        request(world=world, rank=source)
+        request(comm=comm, rank=source)
 
     if dtype is None:
-        dtype = world.irecv(source=source).wait()
+        dtype = comm.irecv(source=source).wait()
     if verbose:
         print(f"{dtype=}")
 
     assert not dtype == 'list', TypeError("Cannot Isend/Irecv a list")
 
     if dtype == 'str':
-        this = world.irecv(source=source).wait()
+        this = comm.irecv(source=source).wait()
         return this
 
     if ndim is None:
-        ndim = Irecv(source, world, ndim=0, dtype=np.int64)
+        ndim = Irecv(source, comm, ndim=0, dtype=np.int64)
     if verbose:
         print(f"{ndim=}")
 
     if (ndim == 0):  # For a single number
         this = np.empty(1, dtype=dtype)  # Initialize on each worker
-        world.Irecv(this, source=source).Wait()
+        comm.Irecv(this, source=source).Wait()
         this = this[0]
 
     elif (ndim == 1): # For a 1D array
         if shape is None:
-            shape = Irecv(source=source, world=world, ndim=0, dtype=np.int64)
+            shape = Irecv(source=source, comm=comm, ndim=0, dtype=np.int64)
         if verbose:
             print(f"{shape=}")
         this = np.empty(shape, dtype=dtype)
-        world.Irecv(this, source=source).Wait()
+        comm.Irecv(this, source=source).Wait()
 
     elif (ndim > 1): # Nd Array
         if shape is None:
-            shape = Irecv(source=source, world=world, shape=ndim, dtype=np.int64)
+            shape = Irecv(source=source, comm=comm, shape=ndim, dtype=np.int64)
         if verbose:
             print(f"{shape=}")
         this = np.empty(shape, dtype=dtype)
-        world.Irecv(this, source=source).Wait()
+        comm.Irecv(this, source=source).Wait()
 
     return this

@@ -4,7 +4,7 @@ from numba import jit, int32, int64
 _numba_settings = {'nopython': True, 'nogil': False, 'fastmath': True, 'cache': False, 'boundscheck': False}
 
 def best_fit_chunks(shape, n_chunks):
-    if isinstance(shape, tuple):
+    if isinstance(shape, (list, tuple)):
         shape = np.asarray(shape, dtype = np.int64)
     n_chunks = np.int64(n_chunks)
     assert n_chunks % 2 == 0, ValueError("n_chunks must be even.")
