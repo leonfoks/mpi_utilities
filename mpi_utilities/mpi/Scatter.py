@@ -1,15 +1,15 @@
 import numpy as np
-from .common import get_dtype
+from .dtype import get_dtype
 from .Bcast import Bcast
 
-def Scatter(self, comm, dtype=None, ndim=None, root=0):
+def Scatter(values, comm, dtype=None, ndim=None, shape=None, root=0):
     """ScatterV a numpy array to all ranks in an MPI communicator.
 
     Each rank gets a chunk defined by a starting index and chunk size. Must be called collectively. The 'starts' and 'chunks' must be available on every MPI rank. See the example for more details. Must be called collectively.
 
     Parameters
     ----------
-    self : numpy.ndarray
+    values : numpy.ndarray
         A numpy array to broadcast from root.
     starts : array of ints
         1D array of ints with size equal to the number of MPI ranks.
@@ -26,31 +26,32 @@ def Scatter(self, comm, dtype=None, ndim=None, root=0):
     comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     axis : int, optional
-        Axis along which to Scatterv to the ranks if self is a 2D numpy array. Default is 0
+        Axis along which to Scatterv to the ranks if values is a 2D numpy array. Default is 0
     root : int, optional
         The MPI rank to broadcast from. Default is 0.
 
     Returns
     -------
     out : numpy.ndarray
-        A chunk of self on each MPI rank with size chunk[comm.rank].
+        A chunk of values on each MPI rank with size chunk[comm.rank].
 
     """
 
     if comm.rank == root:
-        assert (self.size % comm.size) == 0, ValueError("Cannot use Scatter for arrays whose size is not equally divisible by the number of MPI ranks\nUse Scatterv instead")
+        assert (values.size % comm.size) == 0, ValueError("Cannot use Scatter for arrays whose size is not equally divisible by the number of MPI ranks\nUse Scatterv instead")
 
     if dtype is None:
-        dtype = comm.bcast(get_dtype(self, comm, rank=root), root=root)
+        dtype = comm.bcast(get_dtype(values, comm, rank=root), root=root)
 
     if ndim is None:
         # Broadcast the number of dimensions
-        ndim = Bcast(np.ndim(self), comm, root=root, ndim=0, dtype='int64')
+        ndim = Bcast(np.ndim(values), comm, root=root, ndim=0, dtype='int64')
 
     if (ndim == 1):  # For a 1D Array
-        shape = int(Bcast(np.size(self), comm, root=root, ndim=0, dtype='int64') / comm.size)
+        if shape is None:
+            shape = int(Bcast(np.size(values), comm, root=root, ndim=0, dtype='int64') / comm.size)
         this = np.empty(shape, dtype=dtype)
-        comm.Scatter([self, None], this, root=root)
+        comm.Scatter([values, None], this, root=root)
         return this
 
     assert False, ValueError("Scatter ndim must equal 1")

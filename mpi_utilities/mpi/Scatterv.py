@@ -1,15 +1,16 @@
 import numpy as np
-from .common import get_dtype, load_balance
+from .dtype import get_dtype
+from ..chunking import load_balance
 from .Bcast import Bcast
 
-def Scatterv(self, comm, starts=None, chunks=None, dtype=None, ndim=None, root=0):
+def Scatterv(values, comm, starts=None, chunks=None, dtype=None, ndim=None, root=0):
     """ScatterV a numpy array to all ranks in an MPI communicator.
 
     Each rank gets a chunk defined by a starting index and chunk size. Must be called collectively. The 'starts' and 'chunks' must be available on every MPI rank. See the example for more details. Must be called collectively.
 
     Parameters
     ----------
-    self : numpy.ndarray
+    values : numpy.ndarray
         A numpy array to broadcast from root.
     starts : array of ints
         1D array of ints with size equal to the number of MPI ranks.
@@ -26,31 +27,32 @@ def Scatterv(self, comm, starts=None, chunks=None, dtype=None, ndim=None, root=0
     comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     axis : int, optional
-        Axis along which to Scatterv to the ranks if self is a 2D numpy array. Default is 0
+        Axis along which to Scatterv to the ranks if values is a 2D numpy array. Default is 0
     root : int, optional
         The MPI rank to broadcast from. Default is 0.
 
     Returns
     -------
     out : numpy.ndarray
-        A chunk of self on each MPI rank with size chunk[comm.rank].
+        A chunk of values on each MPI rank with size chunk[comm.rank].
 
     """
     if dtype is None:
-        dtype = comm.bcast(get_dtype(self, comm, rank=root), root=root)
+        dtype = comm.bcast(get_dtype(values, comm, rank=root), root=root)
 
     if ndim is None:
         # Broadcast the number of dimensions
-        ndim = Bcast(np.ndim(self), comm, root=root, ndim=0, dtype='int64')
+        ndim = Bcast(np.ndim(values), comm=comm, root=root, ndim=0, dtype='int64')
 
     if chunks is None:
         if ndim == 1:
-            shape = Bcast(np.size(self), comm, root=root, ndim=0, dtype='int64')
-        starts, chunks = load_balance(shape, comm.size)
+            shape = Bcast(np.size(values), comm=comm, root=root, ndim=0, dtype='int64')
+        starts, chunks, _ = load_balance(shape, comm.size)
     else:
-        assert ((chunks is not None) + (starts is not None)) != 1, ValueError("Must specify both chunks and starts.")
+        if starts is None:
+            starts = np.r_[0, np.cumsum(chunks)[:-1]]
 
     if (ndim == 1):  # For a 1D Array
-        this = np.empty(chunks[comm.rank], dtype=dtype)
-        comm.Scatterv([self, chunks, starts, None], this, root=root)
-        return this
+        out = np.empty(chunks[comm.rank], dtype=dtype)
+        comm.Scatterv([values, chunks, starts, None], out, root=root)
+        return out

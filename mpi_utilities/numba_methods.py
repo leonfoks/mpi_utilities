@@ -3,16 +3,16 @@ from numba import jit, int32, int64
 
 _numba_settings = {'nopython': True, 'nogil': False, 'fastmath': True, 'cache': False, 'boundscheck': False}
 
+
 def best_fit_chunks(shape, n_chunks):
-    if isinstance(shape, (list, tuple)):
-        shape = np.asarray(shape, dtype = np.int64)
+    shape = np.atleast_1d(shape).astype(np.int64)
     n_chunks = np.int64(n_chunks)
     assert n_chunks % 2 == 0, ValueError("n_chunks must be even.")
     return __nb__best_fit_chunks(shape, n_chunks)
 
-@jit(**_numba_settings)
+# @jit(**_numba_settings)
 def __nb__unravel_index(index, shape, order='C'):
-    coords = np.ones_like(shape, dtype=int32)
+    coords = np.ones_like(shape, dtype=np.int32)
     if order == 'C':
         shape = shape[::-1]
     for i, dim in enumerate(shape):
@@ -23,9 +23,8 @@ def __nb__unravel_index(index, shape, order='C'):
         coords = coords[::-1]
     return coords
 
-@jit(int64[:](int64[:], int64), **_numba_settings)
+# @jit(int64[:](int64[:], int64), **_numba_settings)
 def __nb__best_fit_chunks(shape, n_chunks):
-
     n_dim = shape.size
 
     weights = shape / np.max(shape)

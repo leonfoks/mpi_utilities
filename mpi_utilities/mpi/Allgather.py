@@ -1,15 +1,14 @@
 import numpy as np
-from .common import mpiu_dtype
-from .Bcast import Bcast
+from .dtype import mpiu_dtype
 
-def Allgather(self, comm):
+def Allgather(values, comm):
     """ScatterV a numpy array to all ranks in an MPI communicator.
 
     Each rank gets a chunk defined by a starting index and chunk size. Must be called collectively. The 'starts' and 'chunks' must be available on every MPI rank. See the example for more details. Must be called collectively.
 
     Parameters
     ----------
-    self : numpy.ndarray
+    values : numpy.ndarray
         A numpy array to broadcast from root.
     starts : array of ints
         1D array of ints with size equal to the number of MPI ranks.
@@ -26,33 +25,31 @@ def Allgather(self, comm):
     comm : mpi4py.MPI.Comm
         MPI parallel communicator.
     axis : int, optional
-        Axis along which to Scatterv to the ranks if self is a 2D numpy array. Default is 0
+        Axis along which to Scatterv to the ranks if values is a 2D numpy array. Default is 0
     root : int, optional
         The MPI rank to broadcast from. Default is 0.
 
     Returns
     -------
     out : numpy.ndarray
-        A chunk of self on each MPI rank with size chunk[comm.rank].
+        A chunk of values on each MPI rank with size chunk[comm.rank].
 
     """
     # if dtype is None:
-    dtype = mpiu_dtype(self)
+    dtype = mpiu_dtype(values)
 
     # if ndim is None:
     # Broadcast the number of dimensions
-    ndim = np.ndim(self)
+    ndim = np.ndim(values)
 
-    this = None
+    out = None
     if ndim == 0:
         shape = comm.size
-        self = np.atleast_1d(self)
+        values = np.atleast_1d(values)
 
     if (ndim == 1):  # For a 1D Array
-        shape = np.size(self) * comm.size
+        shape = np.size(values) * comm.size
 
-    this = np.empty(shape, dtype=dtype)
-    comm.Allgather([self, None], this)
-    return this
-
-    # assert False, ValueError("Gather ndim must equal 1")
+    out = np.empty(shape, dtype=dtype)
+    comm.Allgather([values, None], out)
+    return out
